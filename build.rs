@@ -8,6 +8,10 @@ fn main() {
     let mut res = winresource::WindowsResource::new();
     res.set_manifest_file("app.manifest");
     res.set_icon("assets/icon.ico");
+    res.set("CompanyName", "BenZoN");
+    res.set("LegalCopyright", "Copyright (c) 2026 BenZoN");
+    res.set("ProductName", "Auto Renamer");
+    res.set("FileDescription", "Auto Renamer");
     res.compile()
         .expect("kunne ikke indlejre Windows-manifestet");
 }

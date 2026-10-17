@@ -1,5 +1,3 @@
-//! Win32 calls: folder dialog, tray icon, single-instance mutex, file move.
-
 use std::ffi::c_void;
 use std::os::windows::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
@@ -49,7 +47,6 @@ use windows::Win32::UI::WindowsAndMessaging::{
 
 pub const WM_TRAY: u32 = 0x8000 + 17;
 pub static REQUEST_QUIT: AtomicBool = AtomicBool::new(false);
-/// Set after `Shell_NotifyIconW(NIM_ADD)` succeeds. Close hides the window only then.
 pub static TRAY_READY: AtomicBool = AtomicBool::new(false);
 
 const GENERIC_READ: u32 = 0x8000_0000;
@@ -79,7 +76,6 @@ pub enum InstanceLock {
 
 pub fn claim_single_instance() -> InstanceLock {
     unsafe {
-        // CreateMutex does not clear the last error when it creates the mutex.
         SetLastError(WIN32_ERROR(0));
         match CreateMutexW(None, false, w!("Local\\AutoRenamer.SingleInstance")) {
             Ok(handle) => {
@@ -96,8 +92,6 @@ pub fn claim_single_instance() -> InstanceLock {
     }
 }
 
-/// `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, value `Auto Renamer`.
-/// The data is the quoted path from `current_exe`. Off deletes the value.
 pub fn set_start_with_windows(enabled: bool) -> Result<(), String> {
     let command = if enabled {
         let exe = std::env::current_exe().map_err(|err| err.to_string())?;
@@ -176,8 +170,6 @@ pub fn wide_path(path: &Path) -> Vec<u16> {
         .collect()
 }
 
-/// `true` when this process can open the file with share mode 0.
-/// A renderer that still has the file open makes this return `false`.
 pub fn exclusively_readable(path: &Path) -> bool {
     let wide = wide_path(path);
     unsafe {
@@ -269,7 +261,6 @@ pub fn centered_on_primary(width: i32, height: i32) -> (i32, i32) {
     (80, 80)
 }
 
-/// Clamps a window rect to the work area of the monitor it overlaps.
 pub fn fit_on_work_area(x: i32, y: i32, width: i32, height: i32) -> (i32, i32, i32, i32) {
     use windows::Win32::Graphics::Gdi::{
         GetMonitorInfoW, MONITORINFO, MONITOR_DEFAULTTONEAREST,
@@ -300,7 +291,6 @@ pub fn fit_on_work_area(x: i32, y: i32, width: i32, height: i32) -> (i32, i32, i
     (x, y, width, height)
 }
 
-/// `true` when `rect` overlaps a monitor, including one left of the primary.
 pub fn placement_visible(x: i32, y: i32, width: i32, height: i32) -> bool {
     if width < 200 || height < 200 {
         return false;
@@ -345,7 +335,6 @@ pub fn pick_folder(owner: HWND, current: Option<&Path>, title: &str) -> Option<P
     }
 }
 
-/// `ShellExecuteW` with verb `explore`. Does nothing unless `path` is a directory.
 pub fn open_folder(path: &Path) {
     if !path.is_dir() {
         return;

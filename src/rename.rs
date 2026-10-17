@@ -1,7 +1,3 @@
-//! File names and the in-memory sequence.
-//! `align` lists the destination once per series key. `claim` then counts up
-//! and only `exists()`-checks the candidate. `reset` lists again for the first gap.
-
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
@@ -20,7 +16,6 @@ pub fn is_image_name(name: &str) -> bool {
     IMAGE_EXTENSIONS.iter().any(|known| *known == ext)
 }
 
-/// Rejects empty, trailing `.`, and `\ / : * ? " < > |`. Max 80 characters.
 pub fn clean_prefix(raw: &str) -> Option<String> {
     let trimmed = raw.trim();
     if trimmed.is_empty() || trimmed.len() > 80 || trimmed.ends_with('.') {
@@ -37,7 +32,6 @@ pub fn sequence_name(prefix: &str, id: u32, width: usize, ext: &str) -> String {
     format!("{prefix}_{id:0width$}.{ext}")
 }
 
-/// Number in `{prefix}_{digits}.{ext}`. Wider than `id_width` still counts.
 pub fn sequence_number(file_name: &str, prefix: &str) -> Option<u32> {
     let head = format!("{prefix}_");
     let (start, rest) = file_name.split_at_checked(head.len())?;
@@ -87,7 +81,6 @@ pub fn allocate_path(folder: &Path, prefix: &str, width: usize, ext: &str) -> Pa
     }
 }
 
-/// Lowest missing `{prefix}_{id}` from 1. Used by Reset ID.
 pub fn first_missing(folder: &Path, prefix: &str) -> u32 {
     let mut used = Vec::new();
     if let Ok(entries) = std::fs::read_dir(folder) {
@@ -123,7 +116,6 @@ pub fn series_key(folder: Option<&Path>, prefix: &str) -> String {
     format!("{folder}|{prefix}")
 }
 
-/// In-memory counter. `align` reads the folder only when `series_key` changes.
 pub struct SequenceBook {
     key: String,
     next_id: u32,
@@ -173,7 +165,6 @@ impl SequenceBook {
             .unwrap_or(true)
     }
 
-    /// `true` when the key changed and the folder was listed. Clears `manual`.
     pub fn align(&mut self, folder: Option<&Path>, prefix: &str) -> bool {
         let key = series_key(folder, prefix);
         if key == self.key {
@@ -192,7 +183,6 @@ impl SequenceBook {
         true
     }
 
-    /// Pins `next_id` and sets `manual`, so a later `align` with the same key does not rescan.
     pub fn set_manual(&mut self, id: u32) {
         self.manual = true;
         self.next_id = id.max(1);

@@ -120,7 +120,6 @@ component DarkCheck inherits Rectangle {
         vertical-alignment: center;
     }
 
-    // Hit target is the box. The label is not part of it.
     TouchArea {
         x: 0px;
         y: (parent.height - 20px) / 2;
@@ -131,14 +130,12 @@ component DarkCheck inherits Rectangle {
     }
 }
 
-// Commits on Enter and focus-out. Out-of-range input is clamped; junk reverts.
 component NumberStep inherits Rectangle {
     in-out property <int> value: 1;
     in property <int> minimum: 0;
     in property <int> maximum: 999999;
     in property <bool> active: true;
 
-    // Do not bind `text` to `value`. That binding recurses when Rust sets `value`.
     init => {
         entry.text = root.value;
     }
@@ -233,7 +230,6 @@ component NumberStep inherits Rectangle {
     }
 }
 
-// `PopupWindow` so the menu is not clipped by the row below it.
 component DarkSelect inherits Rectangle {
     in property <bool> enabled: true;
     in property <[string]> choices: [];
@@ -329,7 +325,6 @@ export component AutoRenamer inherits Window {
     }
 
     in-out property <string> folder-path: "D:\\HS2\\Screenshots";
-    // On: copy into output-folder-path. Off: rename inside the watched folder.
     in-out property <bool> copy-to-output-enabled: false;
     in-out property <string> output-folder-path: "";
     in-out property <string> base-name: "screenshot";
@@ -569,7 +564,6 @@ export component AutoRenamer inherits Window {
         }
         Rectangle { x: 20px; y: 288px; width: parent.width - 40px; height: 1px; background: #2c3a4b; }
 
-        // Dividers at y=288 and y=358. Row center is y=323.
         DarkCheck { x: 20px; y: 302px; width: 255px; height: 42px; label: "Auto convert"; checked <=> root.convert-enabled; }
         Text { x: 286px; y: 306px; width: 54px; height: 34px; text: "Format"; color: #e8edf8; vertical-alignment: center; }
         DarkSelect {
@@ -603,7 +597,6 @@ export component AutoRenamer inherits Window {
         }
         Rectangle { x: 20px; y: 358px; width: parent.width - 40px; height: 1px; background: #2c3a4b; }
 
-        // Dividers at y=358 and y=428. Row center is y=393.
         DarkCheck { x: 20px; y: 372px; width: 255px; height: 42px; label: "Resize images"; checked <=> root.resize-enabled; }
         Text { x: 280px; y: 379px; width: 78px; height: 28px; text: "Dimensions"; color: root.resize-enabled ? #e8edf8 : #78889e; vertical-alignment: center; }
         NumberStep { x: 358px; y: 375px; width: 90px; height: 36px; value <=> root.image-width; minimum: 1; maximum: 16384; active: root.resize-enabled; }
@@ -685,7 +678,6 @@ export component AutoRenamer inherits Window {
             }
         }
 
-        // Footer from y=647. Status, startup check, and Reset ID share that band.
         Rectangle { x: 1px; y: 646px; width: parent.width - 2px; height: 1px; background: #2d3b4e; }
         footer := Rectangle {
             x: 1px;

@@ -1,19 +1,19 @@
-; Per-user install. Matches the HKCU Run key used by Start with Windows.
 #ifndef AppVersion
-  #define AppVersion "0.1.0"
+  #define AppVersion "1.0.0"
 #endif
 
 [Setup]
 AppId={{7C4E9A21-5B38-4F6D-A1C0-8E2D47B9F013}
 AppName=Auto Renamer
 AppVersion={#AppVersion}
-AppPublisher=Auto Renamer
+AppPublisher=BenZoN
 DefaultDirName={localappdata}\Auto Renamer
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
-OutputDir=target\installer
+LicenseFile=..\LICENSE
+OutputDir=..\target\installer
 OutputBaseFilename=AutoRenamer-Setup
-SetupIconFile=assets\icon.ico
+SetupIconFile=..\assets\icon.ico
 UninstallDisplayIcon={app}\auto-renamer.exe
 Compression=lzma2
 SolidCompression=yes
@@ -24,7 +24,7 @@ CloseApplications=yes
 RestartApplications=no
 
 [Files]
-Source: "target\release\auto-renamer.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\target\release\auto-renamer.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\Auto Renamer"; Filename: "{app}\auto-renamer.exe"

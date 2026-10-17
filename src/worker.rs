@@ -1,5 +1,3 @@
-//! Waits until a new image is finished, then renames or copies it once.
-
 use crate::config::Config;
 use crate::convert::{convert_image, image_size, same_format, within_limits, OutputFormat};
 use crate::messages::UiEvent;
@@ -40,7 +38,6 @@ pub fn run(
     }
 }
 
-/// One save produces several directory notifications. First path wins.
 fn unique_paths(first: PathBuf, files: &Receiver<PathBuf>) -> Vec<PathBuf> {
     let mut batch = vec![first];
     while let Ok(extra) = files.try_recv() {

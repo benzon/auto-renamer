@@ -1,7 +1,3 @@
-//! `%APPDATA%\Auto Renamer\config.json`.
-//! `next_id` is kept in memory. The destination folder is listed when the
-//! series key changes and when the user resets the id, not on each file.
-
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
@@ -133,7 +129,6 @@ impl Config {
         }
     }
 
-    /// Destination for the renamed file. With `keep_original`, that is `output_folder`.
     pub fn destination_folder(&self) -> Option<PathBuf> {
         let watch = self.folder.as_ref()?;
         if self.keep_original {
@@ -144,8 +139,6 @@ impl Config {
     }
 }
 
-/// Relative names resolve under `watch`. A `..` segment falls back to `watch/renamed`.
-/// An absolute path is used as given.
 pub fn output_folder_path(watch: &Path, raw: &str) -> PathBuf {
     let trimmed = raw.trim();
     if trimmed.is_empty() {

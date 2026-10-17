@@ -1,8 +1,10 @@
 [package]
 name = "auto-renamer"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
+authors = ["BenZoN"]
 description = "Auto Renamer watches a folder and renames new images"
+license = "GPL-3.0-only"
 publish = false
 default-run = "auto-renamer"
 

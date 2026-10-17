@@ -28,7 +28,7 @@ jobs:
         shell: pwsh
         run: |
           choco install innosetup --no-progress -y
-          $version = "0.1.0"
+          $version = "1.0.0"
           if ($env:GITHUB_REF_TYPE -eq "tag" -and $env:GITHUB_REF_NAME -match '^v?(\d+\.\d+\.\d+)') {
             $version = $Matches[1]
           }

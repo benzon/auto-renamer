@@ -1,5 +1,3 @@
-//! Image encode through ffmpeg. System ffmpeg, else `ffmpeg-sidecar` with `KEEP_ONLY_FFMPEG=1`.
-
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
@@ -71,7 +69,6 @@ pub fn ffmpeg_status() -> Option<Result<(), String>> {
     ENSURED.lock().ok().and_then(|guard| guard.clone())
 }
 
-/// Cached after the first call. A second caller waits on `ENSURING`.
 pub fn ensure_ffmpeg() -> Result<(), String> {
     if let Some(done) = ffmpeg_status() {
         return done;
@@ -126,8 +123,6 @@ pub fn convert_image(
     )
 }
 
-/// `true` when no encode is required. A `0` side is unlimited.
-/// `None` size returns `false`, so the caller encodes.
 pub fn within_limits(
     size: Option<(u32, u32)>,
     max_width: u32,

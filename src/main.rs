@@ -1,6 +1,3 @@
-//! Slint window, settings timer, and the worker/watch wiring.
-//! Folder pick, tray, file lock, and rename go through `winutil`.
-
 #![cfg_attr(all(windows, not(test)), windows_subsystem = "windows")]
 
 mod config;
@@ -149,7 +146,6 @@ fn run() -> Result<(), slint::PlatformError> {
     ui.window().on_close_requested({
         let hwnd = Rc::clone(&hwnd);
         move || {
-            // `Window::hide()` drops Slint's keepalive and the process exits.
             if TRAY_READY.load(Ordering::SeqCst) {
                 let raw = hwnd.get();
                 if raw != 0 {

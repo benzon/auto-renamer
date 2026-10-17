@@ -1,6 +1,3 @@
-//! `ReadDirectoryChangesW` on the picked folder. `bWatchSubtree` is false.
-//! The call stays outstanding; the 250 ms wait only checks the stop flag.
-
 use crate::messages::UiEvent;
 use crate::rename::is_image_name;
 use crate::winutil::open_directory;
@@ -135,7 +132,6 @@ fn watch_directory(
             )
         };
         if let Err(err) = queued {
-            // Overlapped `ReadDirectoryChangesW` returns `ERROR_IO_PENDING` while it waits.
             if err.code() != ERROR_IO_PENDING.into() {
                 let _ = ui.send(UiEvent::Log(format!("Watching stopped: {err}")));
                 break;
