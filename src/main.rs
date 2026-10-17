@@ -4,6 +4,7 @@ mod config;
 mod convert;
 mod messages;
 mod rename;
+mod update;
 mod watcher;
 mod winutil;
 mod worker;
@@ -27,9 +28,9 @@ use slint::{ComponentHandle, PhysicalPosition, SharedString};
 use watcher::FolderWatch;
 use windows::Win32::Foundation::HWND;
 use winutil::{
-    claim_single_instance, hide_window, open_folder, pick_folder, placement_visible,
-    set_start_with_windows, strip_maximize, ComGuard, InstanceLock, TrayIcon, REQUEST_QUIT,
-    TRAY_READY,
+    ask_yes_no, claim_single_instance, hide_window, open_folder, open_url, pick_folder,
+    placement_visible, set_start_with_windows, show_window, strip_maximize, ComGuard, InstanceLock,
+    TrayIcon, REQUEST_QUIT, TRAY_READY,
 };
 
 const SETTINGS_SAVE: Duration = Duration::from_millis(600);
@@ -40,6 +41,10 @@ const LOG_KEEP: Duration = Duration::from_secs(12 * 60 * 60);
 const LOG_MAX: usize = 200;
 
 fn main() {
+    if let Some(pid) = update::restart_after_arg() {
+        update::wait_for_exit(pid);
+    }
+    update::remove_previous_exe();
     if let Err(err) = run() {
         let text: Vec<u16> = format!("Auto Renamer could not start.\n{err}")
             .encode_utf16()
@@ -105,15 +110,6 @@ fn run() -> Result<(), slint::PlatformError> {
     }
 
     let lines = Rc::new(RefCell::new(Vec::<LogLine>::new()));
-    push_log(
-        &ui,
-        &lines,
-        if ready_at_start {
-            "Started in the system tray. Watching is on."
-        } else {
-            "Choose a folder and a filename. Close and minimize leave the app in the system tray."
-        },
-    );
 
     let tick = Rc::new(RefCell::new(Tick {
         save_dirty: false,
@@ -126,6 +122,10 @@ fn run() -> Result<(), slint::PlatformError> {
         window_moved_at: None,
         chrome_ready: false,
         tray_tries: 0,
+        update_prompted: false,
+        update_busy: false,
+        update_version: String::new(),
+        update_url: String::new(),
     }));
     let tray: Rc<RefCell<Option<TrayIcon>>> = Rc::new(RefCell::new(None));
     let hwnd = Rc::new(Cell::new(0isize));
@@ -139,7 +139,6 @@ fn run() -> Result<(), slint::PlatformError> {
         file_tx.clone(),
         ui_tx.clone(),
         Rc::clone(&tick),
-        Rc::clone(&lines),
         Rc::clone(&hwnd),
     );
 
@@ -158,6 +157,17 @@ fn run() -> Result<(), slint::PlatformError> {
         }
     });
     ui.show()?;
+    {
+        let tx = ui_tx.clone();
+        std::thread::spawn(move || {
+            if let Some(offer) = update::available() {
+                let _ = tx.send(UiEvent::UpdateAvailable {
+                    version: offer.version,
+                    url: offer.url,
+                });
+            }
+        });
+    }
 
     let ui_weak = ui.as_weak();
     let timer = slint::Timer::default();
@@ -169,6 +179,7 @@ fn run() -> Result<(), slint::PlatformError> {
         let events = Rc::clone(&events);
         let tray = Rc::clone(&tray);
         let hwnd = Rc::clone(&hwnd);
+        let ui_tx = ui_tx.clone();
         let home_ready = ready_at_start;
         let home_pos = saved_place;
         move || {
@@ -181,7 +192,10 @@ fn run() -> Result<(), slint::PlatformError> {
                 return;
             }
             ensure_chrome(&ui, &tick, &tray, &hwnd, home_ready, home_pos);
-            drain_events(&ui, &events, &lines);
+            let offer = drain_events(&ui, &events, &lines, &tick);
+            if let Some((version, url)) = offer {
+                offer_update(&ui, &tick, &hwnd, &ui_tx, version, url);
+            }
             batch(&ui, &settings, &book, &tick);
             note_window(&ui, &settings, &book, &tick);
             prune_log(&ui, &lines);
@@ -233,6 +247,10 @@ struct Tick {
     window_moved_at: Option<Instant>,
     chrome_ready: bool,
     tray_tries: u8,
+    update_prompted: bool,
+    update_busy: bool,
+    update_version: String,
+    update_url: String,
 }
 
 fn wire(
@@ -243,7 +261,6 @@ fn wire(
     file_tx: mpsc::Sender<PathBuf>,
     ui_tx: mpsc::Sender<UiEvent>,
     tick: Rc<RefCell<Tick>>,
-    lines: Rc<RefCell<Vec<LogLine>>>,
     hwnd: Rc<Cell<isize>>,
 ) {
     ui.on_edited({
@@ -389,13 +406,34 @@ fn wire(
         }
     });
 
+    ui.on_open_github(|| open_url("https://github.com/benzon/auto-renamer"));
+
+    ui.on_install_update({
+        let ui_weak = ui.as_weak();
+        let tick = Rc::clone(&tick);
+        let hwnd = Rc::clone(&hwnd);
+        let ui_tx = ui_tx.clone();
+        move || {
+            let Some(ui) = ui_weak.upgrade() else {
+                return;
+            };
+            let (version, url, busy) = {
+                let tick = tick.borrow();
+                (tick.update_version.clone(), tick.update_url.clone(), tick.update_busy)
+            };
+            if busy || url.is_empty() {
+                return;
+            }
+            begin_update(&ui, &tick, &hwnd, &ui_tx, version, url);
+        }
+    });
+
     ui.on_reset_id_requested({
         let ui_weak = ui.as_weak();
         let settings = Arc::clone(&settings);
         let book = Arc::clone(&book);
         let watch = Arc::clone(&watch);
         let tick = Rc::clone(&tick);
-        let lines = Rc::clone(&lines);
         move || {
             let Some(ui) = ui_weak.upgrade() else {
                 return;
@@ -422,12 +460,6 @@ fn wire(
             }
             persist(&book, &settings);
             refresh_labels(&ui, &config, id);
-            let width = config.id_width as usize;
-            push_log(
-                &ui,
-                &lines,
-                &format!("Counter reset. The next free number is {id:0width$}."),
-            );
         }
     });
 
@@ -819,21 +851,88 @@ fn drain_events(
     ui: &AutoRenamer,
     events: &Rc<RefCell<Receiver<UiEvent>>>,
     lines: &Rc<RefCell<Vec<LogLine>>>,
-) {
+    tick: &Rc<RefCell<Tick>>,
+) -> Option<(String, String)> {
+    let mut offer = None;
     loop {
         let Ok(event) = events.borrow().try_recv() else {
             break;
         };
         match event {
             UiEvent::Status(_) => {}
-            UiEvent::Log(text) => push_log(ui, lines, &text),
+            UiEvent::Log(text) => {
+                let _ = text;
+            }
             UiEvent::Renamed { from, to } => push_renamed(ui, lines, &from, &to),
+            UiEvent::UpdateAvailable { version, url } => offer = Some((version, url)),
+            UiEvent::UpdateReady => REQUEST_QUIT.store(true, Ordering::SeqCst),
+            UiEvent::UpdateFailed(text) => {
+                let _ = text;
+                tick.borrow_mut().update_busy = false;
+                ui.set_update_label(SharedString::from("Update failed"));
+            }
         }
     }
+    offer
 }
 
-fn push_log(ui: &AutoRenamer, lines: &Rc<RefCell<Vec<LogLine>>>, text: &str) {
-    push_entry(ui, lines, text, "", false);
+fn offer_update(
+    ui: &AutoRenamer,
+    tick: &Rc<RefCell<Tick>>,
+    hwnd: &Cell<isize>,
+    ui_tx: &mpsc::Sender<UiEvent>,
+    version: String,
+    url: String,
+) {
+    {
+        let mut tick = tick.borrow_mut();
+        tick.update_version = version.clone();
+        tick.update_url = url.clone();
+    }
+    ui.set_update_label(SharedString::from("Update available"));
+    if tick.borrow().update_prompted || tick.borrow().update_busy {
+        return;
+    }
+    tick.borrow_mut().update_prompted = true;
+    begin_update(ui, tick, hwnd, ui_tx, version, url);
+}
+
+fn begin_update(
+    ui: &AutoRenamer,
+    tick: &Rc<RefCell<Tick>>,
+    hwnd: &Cell<isize>,
+    ui_tx: &mpsc::Sender<UiEvent>,
+    version: String,
+    url: String,
+) {
+    if tick.borrow().update_busy || url.is_empty() {
+        return;
+    }
+    let raw = hwnd.get();
+    let owner = HWND(raw as *mut std::ffi::c_void);
+    if raw != 0 {
+        show_window(owner);
+    }
+    let question = format!("Version {version} is available.\n\nUpdate now? Auto Renamer will close and reopen.");
+    if !ask_yes_no(owner, &question) {
+        return;
+    }
+    tick.borrow_mut().update_busy = true;
+    ui.set_update_label(SharedString::from("Downloading…"));
+    let tx = ui_tx.clone();
+    std::thread::spawn(move || match update::download(&url) {
+        Ok(path) => match update::install(&path) {
+            Ok(()) => {
+                let _ = tx.send(UiEvent::UpdateReady);
+            }
+            Err(err) => {
+                let _ = tx.send(UiEvent::UpdateFailed(err));
+            }
+        },
+        Err(err) => {
+            let _ = tx.send(UiEvent::UpdateFailed(format!("Update failed: {err}")));
+        }
+    });
 }
 
 fn push_renamed(ui: &AutoRenamer, lines: &Rc<RefCell<Vec<LogLine>>>, from: &str, to: &str) {

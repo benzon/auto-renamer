@@ -447,7 +447,7 @@ dependencies = [
 
 [[package]]
 name = "auto-renamer"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "ffmpeg-sidecar",
  "png 0.17.16",

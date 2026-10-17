@@ -1,5 +1,7 @@
 ﻿# Auto Renamer
 
+**Beta.** Version 1.0.0 is an early public release. It works, and details can still change.
+
 Auto Renamer watches one folder on Windows and renames each new image into a numbered series, such as `screenshot_00001.png`.
 
 It leaves files that are already in the folder alone, and it does not look inside subfolders. A file is renamed once, after it has finished writing.
@@ -21,6 +23,8 @@ Convert and resize use FFmpeg. The first time either is turned on, Auto Renamer 
 Close and minimize send the window to the notification area. Quit is on the tray menu. A second start brings the window that is already running back up.
 
 **Start with Windows** registers the current program for the signed-in user. It does not need administrator rights. Turn it off to start Auto Renamer yourself.
+
+On startup, Auto Renamer checks for a newer release and asks before updating. The GitHub icon in the footer opens the project page.
 
 Settings are stored in `%APPDATA%\Auto Renamer\config.json`.
 

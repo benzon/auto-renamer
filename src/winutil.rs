@@ -38,7 +38,8 @@ use windows::Win32::UI::WindowsAndMessaging::{
     AppendMenuW, CreateIconIndirect, CreatePopupMenu, DestroyMenu, FindWindowW,
     GetAncestor, GetCursorPos, GetWindowLongW, MessageBoxW, PostMessageW, SendMessageW,
     SetForegroundWindow, ShowWindow,
-    TrackPopupMenu, HICON, ICONINFO, ICON_BIG, ICON_SMALL, MB_ICONINFORMATION, MB_OK, MF_STRING,
+    TrackPopupMenu, HICON, ICONINFO, ICON_BIG, ICON_SMALL, IDYES, MB_ICONINFORMATION,
+    MB_ICONQUESTION, MB_OK, MB_SETFOREGROUND, MB_YESNO, MF_STRING,
     SC_MAXIMIZE, SC_MINIMIZE, SW_HIDE, SW_RESTORE, SW_SHOW, SW_SHOWNORMAL, SWP_FRAMECHANGED,
     SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SetWindowLongW, SetWindowPos, TPM_NONOTIFY,
     TPM_RETURNCMD, TPM_RIGHTBUTTON, WM_CLOSE, WM_CONTEXTMENU, GA_ROOT, GWL_STYLE, WS_MAXIMIZEBOX,
@@ -332,6 +333,33 @@ pub fn pick_folder(owner: HWND, current: Option<&Path>, title: &str) -> Option<P
         let path = name.to_string().ok();
         CoTaskMemFree(Some(name.0 as *const c_void));
         path.map(PathBuf::from)
+    }
+}
+
+pub fn open_url(url: &str) {
+    let wide = wide_text(url);
+    unsafe {
+        let _ = ShellExecuteW(
+            None,
+            w!("open"),
+            PCWSTR(wide.as_ptr()),
+            None,
+            None,
+            SW_SHOWNORMAL,
+        );
+    }
+}
+
+pub fn ask_yes_no(owner: HWND, text: &str) -> bool {
+    let wide = wide_text(text);
+    let owner = if owner.0.is_null() { None } else { Some(owner) };
+    unsafe {
+        MessageBoxW(
+            owner,
+            PCWSTR(wide.as_ptr()),
+            w!("Auto Renamer"),
+            MB_YESNO | MB_ICONQUESTION | MB_SETFOREGROUND,
+        ) == IDYES
     }
 }
 
