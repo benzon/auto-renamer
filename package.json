@@ -1,7 +1,0 @@
-{
-  "name": "auto-renamer",
-  "private": true,
-  "scripts": {
-    "dev": "cargo run"
-  }
-}

@@ -19,12 +19,10 @@ pub struct Config {
     pub format: String,
     #[serde(default = "default_quality")]
     pub quality: u8,
-    /// Next id. With `manual_next`, restart does not rescan to max+1.
     #[serde(default)]
     pub next_id: u32,
     #[serde(default)]
     pub manual_next: bool,
-    /// Copy into `output_folder` and leave the source file.
     #[serde(default)]
     pub keep_original: bool,
     #[serde(default = "default_output")]
@@ -35,7 +33,6 @@ pub struct Config {
     pub resize_width: u32,
     #[serde(default = "default_resize_height")]
     pub resize_height: u32,
-    /// `true`: scale to the exact box. `false`: shrink inside the box, keep aspect.
     #[serde(default)]
     pub resize_stretch: bool,
     #[serde(default)]
@@ -46,7 +43,6 @@ pub struct Config {
     pub window_width: Option<u32>,
     #[serde(default)]
     pub window_height: Option<u32>,
-    /// Mirrors the HKCU Run value written by `set_start_with_windows`.
     #[serde(default)]
     pub start_with_windows: bool,
 }
