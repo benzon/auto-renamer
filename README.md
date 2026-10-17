@@ -4,6 +4,8 @@
 
 Auto Renamer watches one folder on Windows and renames each new image into a numbered series, such as `screenshot_00001.png`.
 
+Honey Select 2 saves screenshots as a name plus a date and time. That pile of timestamps is why this exists. New images get a short numbered name instead.
+
 It leaves files that are already in the folder alone, and it does not look inside subfolders. A file is renamed once, after it has finished writing.
 
 ## Use
