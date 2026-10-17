@@ -1,0 +1,51 @@
+name: Build
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches: [main, master]
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Test
+        run: cargo test --locked --bin auto-renamer
+
+      - name: Release
+        run: cargo build --release --locked --bin auto-renamer
+
+      - name: Installer
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+          $version = "0.1.0"
+          if ($env:GITHUB_REF_TYPE -eq "tag" -and $env:GITHUB_REF_NAME -match '^v?(\d+\.\d+\.\d+)') {
+            $version = $Matches[1]
+          }
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          & $iscc "/DAppVersion=$version" installer\auto-renamer.iss
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: auto-renamer-windows
+          path: |
+            target/release/auto-renamer.exe
+            target/installer/AutoRenamer-Setup.exe
+
+      - name: GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            target/release/auto-renamer.exe
+            target/installer/AutoRenamer-Setup.exe
